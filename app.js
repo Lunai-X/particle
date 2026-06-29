@@ -202,8 +202,8 @@ function buildImageParticles(image) {
   imageParticles.length = 0;
   const sampler = document.createElement("canvas");
   const sctx = sampler.getContext("2d", { willReadFrequently: true });
-  const maxW = Math.min(width * 0.62, 760);
-  const maxH = Math.min(height * 0.58, 560);
+  const maxW = Math.min(width * 0.68, 900);
+  const maxH = Math.min(height * 0.64, 680);
   const scale = Math.min(maxW / image.width, maxH / image.height, 1);
   const drawW = Math.max(1, Math.floor(image.width * scale));
   const drawH = Math.max(1, Math.floor(image.height * scale));
@@ -211,7 +211,8 @@ function buildImageParticles(image) {
   sampler.height = drawH;
   sctx.drawImage(image, 0, 0, drawW, drawH);
   const data = sctx.getImageData(0, 0, drawW, drawH).data;
-  const step = Math.max(4, Math.floor(Math.sqrt((drawW * drawH) / 5200)));
+  const step = Math.max(2, Math.floor(Math.sqrt((drawW * drawH) / 18000)));
+  const particleSize = Math.max(0.75, Math.min(1.85, step * 0.34));
   const ox = width * 0.5 - drawW * 0.5;
   const oy = height * 0.52 - drawH * 0.5;
 
@@ -220,18 +221,23 @@ function buildImageParticles(image) {
       const index = (y * drawW + x) * 4;
       const alpha = data[index + 3];
       if (alpha < 36) continue;
-      const brightness = (data[index] + data[index + 1] + data[index + 2]) / 765;
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      const brightness = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
       const targetX = ox + x;
       const targetY = oy + y;
       imageParticles.push({
         x: targetX + rand(-width * 0.45, width * 0.45),
         y: targetY + rand(-height * 0.45, height * 0.45),
-        tx: targetX,
-        ty: targetY,
+        tx: targetX + rand(-step * 0.18, step * 0.18),
+        ty: targetY + rand(-step * 0.18, step * 0.18),
         vx: 0,
         vy: 0,
-        size: Math.max(1.2, step * 0.42),
-        tone: brightness > 0.52 ? 255 : 22,
+        size: particleSize * rand(0.72, 1.2),
+        alpha: Math.min(0.98, Math.max(0.38, alpha / 255)),
+        color: `rgb(${red}, ${green}, ${blue})`,
+        glow: brightness > 0.62 ? 0.22 : 0.08,
       });
     }
   }
@@ -264,10 +270,18 @@ function drawImageParticles() {
     p.x += p.vx;
     p.y += p.vy;
 
-    ctx.fillStyle = p.tone > 128 ? "#fff" : "#050505";
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fill();
+    if (p.glow > 0.12) {
+      ctx.globalAlpha = p.alpha * p.glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -343,7 +357,7 @@ imageInput.addEventListener("change", (event) => {
   image.onload = () => {
     loadedImage = image;
     buildImageParticles(image);
-    statusText.textContent = "图片已转换为黑白粒子";
+    statusText.textContent = "图片已转换为彩色细腻粒子";
   };
   image.src = URL.createObjectURL(file);
 });
