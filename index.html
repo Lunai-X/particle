@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gesture Particle Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <canvas id="particleCanvas" aria-label="gesture particle canvas"></canvas>
+
+      <section class="toolbar" aria-label="particle controls">
+        <div class="brand">
+          <span class="mark"></span>
+          <div>
+            <strong>粒子手势</strong>
+            <small id="statusText">上传图片或移动手掌开始</small>
+          </div>
+        </div>
+
+        <label class="upload">
+          <input id="imageInput" type="file" accept="image/*" />
+          <span>导入图片</span>
+        </label>
+
+        <div class="modes" role="group" aria-label="effect modes">
+          <button data-mode="smoke" class="active">1 烟雾</button>
+          <button data-mode="fire">2 火焰</button>
+          <button data-mode="water">3 水流</button>
+          <button data-mode="stars">4 星空</button>
+          <button data-mode="bubbles">5 气泡</button>
+        </div>
+
+        <button id="cameraButton" class="camera">开启手势</button>
+      </section>
+
+      <aside class="readout">
+        <span id="gestureLabel">手动: 烟雾</span>
+        <span id="fingerLabel">手指: -</span>
+      </aside>
+
+      <video id="cameraFeed" playsinline muted></video>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
