@@ -236,7 +236,7 @@ function buildImageParticles(image) {
         vy: 0,
         size: particleSize * rand(0.72, 1.2),
         alpha: Math.min(0.98, Math.max(0.38, alpha / 255)),
-        color: `rgb(${red}, ${green}, ${blue})`,
+        color: brightness > 0.52 ? "#fff" : "#050505",
         glow: brightness > 0.62 ? 0.22 : 0.08,
       });
     }
@@ -357,7 +357,7 @@ imageInput.addEventListener("change", (event) => {
   image.onload = () => {
     loadedImage = image;
     buildImageParticles(image);
-    statusText.textContent = "图片已转换为彩色细腻粒子";
+    statusText.textContent = "图片已转换为黑白细腻粒子";
   };
   image.src = URL.createObjectURL(file);
 });
