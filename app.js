@@ -9,11 +9,11 @@ const fingerLabel = document.querySelector("#fingerLabel");
 const modeButtons = [...document.querySelectorAll("[data-mode]")];
 
 const MODES = {
-  smoke: { label: "烟雾", count: 1 },
-  fire: { label: "火焰", count: 2 },
-  water: { label: "水流", count: 3 },
-  stars: { label: "星空", count: 4 },
-  bubbles: { label: "气泡", count: 5 },
+  smoke: { label: "彩雾", hue: [286, 196] },
+  fire: { label: "火焰", hue: [18, 52] },
+  water: { label: "水流", hue: [176, 214] },
+  stars: { label: "星河", hue: [228, 315] },
+  bubbles: { label: "泡泡", hue: [166, 304] },
 };
 
 const modeByFingerCount = ["smoke", "smoke", "fire", "water", "stars", "bubbles"];
@@ -29,7 +29,7 @@ let handPointer = null;
 let camera = null;
 let lastRipple = 0;
 let loadedImage = null;
-let monochromeFlip = false;
+let backgroundPhase = 0;
 
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -53,6 +53,11 @@ function rand(min, max) {
   return min + Math.random() * (max - min);
 }
 
+function modeHue(nextMode, offset = 0) {
+  const [a, b] = MODES[nextMode].hue;
+  return (rand(a, b) + offset + 360) % 360;
+}
+
 function spawnParticle(x, y, nextMode = mode, power = 1) {
   const particle = {
     x,
@@ -66,7 +71,8 @@ function spawnParticle(x, y, nextMode = mode, power = 1) {
     size: rand(1, 4),
     mode: nextMode,
     spin: rand(-0.06, 0.06),
-    hue: rand(0, 1),
+    hue: modeHue(nextMode),
+    hue2: modeHue(nextMode, rand(18, 72)),
   };
 
   if (nextMode === "smoke") {
@@ -117,29 +123,36 @@ function drawParticle(p) {
   ctx.globalAlpha = Math.max(p.life, 0);
 
   if (p.mode === "smoke") {
-    const shade = Math.floor(160 + p.hue * 80);
     const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-    gradient.addColorStop(0, `rgba(${shade}, ${shade}, ${shade}, 0.22)`);
-    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+    gradient.addColorStop(0, `hsla(${p.hue}, 92%, 72%, 0.34)`);
+    gradient.addColorStop(0.48, `hsla(${p.hue2}, 88%, 62%, 0.16)`);
+    gradient.addColorStop(1, `hsla(${p.hue}, 92%, 62%, 0)`);
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fill();
   } else if (p.mode === "fire") {
-    const hot = p.life > 0.55 ? "#ffffff" : "#a8a8a8";
-    ctx.fillStyle = hot;
+    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 1.45);
+    gradient.addColorStop(0, `hsla(48, 100%, 78%, ${p.life})`);
+    gradient.addColorStop(0.36, `hsla(${p.hue}, 100%, 58%, ${p.life * 0.92})`);
+    gradient.addColorStop(1, "hsla(338, 92%, 48%, 0)");
+    ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.ellipse(p.x, p.y, p.size * 0.58, p.size * 1.32, p.spin, 0, Math.PI * 2);
     ctx.fill();
   } else if (p.mode === "water") {
-    ctx.strokeStyle = `rgba(235, 235, 235, ${p.life})`;
+    ctx.strokeStyle = `hsla(${p.hue}, 95%, 66%, ${p.life})`;
+    ctx.shadowColor = `hsla(${p.hue}, 100%, 62%, 0.55)`;
+    ctx.shadowBlur = 10;
     ctx.lineWidth = Math.max(1, p.size * 0.55);
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
     ctx.lineTo(p.x - p.vx * 3.6, p.y - p.vy * 3.6);
     ctx.stroke();
   } else if (p.mode === "stars") {
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = `hsla(${p.hue}, 100%, ${68 + p.life * 20}%, ${p.life})`;
+    ctx.shadowColor = `hsla(${p.hue2}, 100%, 70%, 0.72)`;
+    ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y - p.size * 2);
     ctx.lineTo(p.x + p.size * 0.6, p.y - p.size * 0.5);
@@ -152,12 +165,14 @@ function drawParticle(p) {
     ctx.closePath();
     ctx.fill();
   } else if (p.mode === "bubbles") {
-    ctx.strokeStyle = `rgba(255, 255, 255, ${p.life * 0.82})`;
+    ctx.strokeStyle = `hsla(${p.hue}, 96%, 76%, ${p.life * 0.82})`;
+    ctx.shadowColor = `hsla(${p.hue2}, 100%, 70%, 0.4)`;
+    ctx.shadowBlur = 9;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = `rgba(255, 255, 255, ${p.life * 0.25})`;
+    ctx.fillStyle = `hsla(${p.hue2}, 100%, 84%, ${p.life * 0.34})`;
     ctx.beginPath();
     ctx.arc(p.x - p.size * 0.28, p.y - p.size * 0.28, Math.max(1, p.size * 0.18), 0, Math.PI * 2);
     ctx.fill();
@@ -225,9 +240,9 @@ function buildImageParticles(image) {
       const red = data[index];
       const green = data[index + 1];
       const blue = data[index + 2];
-      const brightness = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
       const targetX = ox + x;
       const targetY = oy + y;
+      const glow = Math.max(red, green, blue) / 255;
       imageParticles.push({
         x: targetX + rand(-width * 0.45, width * 0.45),
         y: targetY + rand(-height * 0.45, height * 0.45),
@@ -237,8 +252,8 @@ function buildImageParticles(image) {
         vy: 0,
         size: particleSize * rand(0.72, 1.2),
         alpha: Math.min(0.98, Math.max(0.38, alpha / 255)),
-        color: brightness > 0.52 ? "#fff" : "#050505",
-        glow: brightness > 0.62 ? 0.22 : 0.08,
+        color: `rgb(${red}, ${green}, ${blue})`,
+        glow: Math.max(0.08, glow * 0.26),
       });
     }
   }
@@ -289,12 +304,12 @@ function drawImageParticles() {
 function drawRipples() {
   for (let i = ripples.length - 1; i >= 0; i -= 1) {
     const r = ripples[i];
-    ctx.strokeStyle = `rgba(255, 255, 255, ${r.life * 0.72})`;
+    ctx.strokeStyle = `hsla(${176 + r.radius * 0.18}, 100%, 68%, ${r.life * 0.72})`;
     ctx.lineWidth = 1 + r.strength * 2;
     ctx.beginPath();
     ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = `rgba(0, 0, 0, ${r.life * 0.45})`;
+    ctx.strokeStyle = `hsla(${302 - r.radius * 0.08}, 92%, 74%, ${r.life * 0.36})`;
     ctx.beginPath();
     ctx.arc(r.x, r.y, r.radius * 0.68, 0, Math.PI * 2);
     ctx.stroke();
@@ -305,14 +320,26 @@ function drawRipples() {
 }
 
 function drawBackground() {
-  monochromeFlip = !monochromeFlip;
-  ctx.fillStyle = monochromeFlip ? "rgba(0, 0, 0, 0.2)" : "rgba(4, 4, 4, 0.22)";
+  backgroundPhase += 0.008;
+  const hueA = 214 + Math.sin(backgroundPhase) * 24;
+  const hueB = 304 + Math.cos(backgroundPhase * 0.8) * 26;
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, `hsla(${hueA}, 72%, 7%, 0.28)`);
+  gradient.addColorStop(0.58, "rgba(7, 11, 27, 0.24)");
+  gradient.addColorStop(1, `hsla(${hueB}, 78%, 9%, 0.3)`);
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
   ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = "#fff";
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = `hsl(${(hueA + hueB) * 0.5}, 92%, 60%)`;
   ctx.beginPath();
-  ctx.arc(width * 0.5, height * 0.52, Math.min(width, height) * 0.37, 0, Math.PI * 2);
+  ctx.arc(
+    width * (0.5 + Math.sin(backgroundPhase * 0.7) * 0.05),
+    height * (0.52 + Math.cos(backgroundPhase * 0.9) * 0.04),
+    Math.min(width, height) * 0.36,
+    0,
+    Math.PI * 2,
+  );
   ctx.fill();
   ctx.restore();
 }
@@ -358,7 +385,7 @@ imageInput.addEventListener("change", (event) => {
   image.onload = () => {
     loadedImage = image;
     buildImageParticles(image);
-    statusText.textContent = "图片已转换为黑白细腻粒子";
+    statusText.textContent = "图片已转换为彩色粒子";
   };
   image.src = URL.createObjectURL(file);
 });
@@ -396,7 +423,7 @@ function palmPressure(landmarks) {
 
 async function startCamera() {
   if (!window.Hands || !window.Camera) {
-    statusText.textContent = "手势库未加载，仍可用鼠标交互";
+    statusText.textContent = "手势库未加载，仍可使用鼠标交互";
     return;
   }
 
@@ -439,7 +466,7 @@ async function startCamera() {
     if (pressure > 0.72 && now - lastRipple > 430) {
       addRipple(palmX, palmY, 1 + pressure);
       lastRipple = now;
-      statusText.textContent = "检测到手掌按压: 水波涟漪";
+      statusText.textContent = "检测到手掌按压: 彩色水波扩散";
     }
   });
 
@@ -454,7 +481,7 @@ async function startCamera() {
   await camera.start();
   cameraFeed.classList.add("ready");
   cameraButton.textContent = "手势已开启";
-  statusText.textContent = "手指数切换效果，掌心靠近触发涟漪";
+  statusText.textContent = "手指数量切换效果，掌心靠近触发涟漪";
 }
 
 cameraButton.addEventListener("click", () => {
@@ -463,7 +490,7 @@ cameraButton.addEventListener("click", () => {
     console.error(error);
     cameraButton.disabled = false;
     cameraButton.textContent = "开启手势";
-    statusText.textContent = "摄像头不可用，可继续鼠标交互";
+    statusText.textContent = "摄像头不可用，可继续使用鼠标交互";
   });
 });
 
