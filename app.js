@@ -20,6 +20,7 @@ const modeByFingerCount = ["smoke", "smoke", "fire", "water", "stars", "bubbles"
 const particles = [];
 const imageParticles = [];
 const ripples = [];
+const IMAGE_PARTICLE_DETAIL = 16200;
 let mode = "smoke";
 let width = 0;
 let height = 0;
@@ -211,7 +212,7 @@ function buildImageParticles(image) {
   sampler.height = drawH;
   sctx.drawImage(image, 0, 0, drawW, drawH);
   const data = sctx.getImageData(0, 0, drawW, drawH).data;
-  const step = Math.max(2, Math.floor(Math.sqrt((drawW * drawH) / 18000)));
+  const step = Math.max(2, Math.floor(Math.sqrt((drawW * drawH) / IMAGE_PARTICLE_DETAIL)));
   const particleSize = Math.max(0.75, Math.min(1.85, step * 0.34));
   const ox = width * 0.5 - drawW * 0.5;
   const oy = height * 0.52 - drawH * 0.5;
